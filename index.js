@@ -1,20 +1,45 @@
-import express from 'express';
-import cors from 'cors';
-import bodyParser from 'body-parser';
-
-
-//components
-import Connection from './database/db.js';
-import Router from './routers/router.js';
-
+const express = require("express");
 const app = express();
+const userManager = require("./routers/userManager");
+const blogRouter = require("./routers/blogManager");
+const util = require("./routers/util");
+const port = process.env.PORT || 5000;
+const cors = require("cors");
+const { OAuth2Client, db } = require("google-auth-library");
+const client = new OAuth2Client(
+  "552817724530-itaeb1gsnpj82isbhqll5m73t6old9fd.apps.googleusercontent.com"
+);
 
-app.use(cors())
-app.use(bodyParser.json({extended:true}));
-app.use(bodyParser.urlencoded({extended:true}));
-app.use('/',Router);
-const PORT = 5000;
+// to parse json data from client
+app.use(express.json());
+app.use(cors({ origin: "http://localhost:3000" }));
+app.use(express.static("./uploads"));
 
-app.listen(PORT, () => console.log(`Server is running successfully on PORT ${PORT}`));
+app.use("/user", userManager);
+app.use("/blog", blogRouter);
+app.use("/util", util);
 
-Connection();
+app.get("/home", (req, res) => {
+  console.log("client request on server");
+  res.send("Request on home");
+});
+
+app.post("/googleauth", async (req, res) => {
+  const { token } = req.body;
+  const ticket = await client.verifyIdToken({
+    idToken: token,
+    audience:
+      "552817724530-itaeb1gsnpj82isbhqll5m73t6old9fd.apps.googleusercontent.com",
+  });
+  const { name, email, picture } = ticket.getPayload();
+  // const user = await db.user.upsert({
+  //     where: { email: email },
+  //     update: { name, picture },
+  //     create: { name, email, picture }
+  // })
+  res.status(201).json({ name, email, picture });
+});
+
+app.listen(port, () => {
+  console.log(`Server started on port on localhost : ${port}`);
+});
